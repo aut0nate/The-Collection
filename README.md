@@ -62,6 +62,12 @@ Before running this project, install:
 
     The command prints an `ADMIN_PASSWORD_HASH=...` line that is escaped safely for a Next.js `.env` file. Keep the plain password in your password manager, not in the project.
 
+    For a Docker Compose `.env` file, generate the hash in Compose-safe format instead:
+
+    ```bash
+    npm run password:hash -- --compose "your-strong-password"
+    ```
+
 4. Generate a session secret:
 
     ```bash
@@ -71,7 +77,7 @@ Before running this project, install:
 Environment notes:
 
 - `ADMIN_USERNAME` is the owner username allowed to access the admin area.
-- `ADMIN_PASSWORD_HASH` is the bcrypt hash for the admin password. Escape `$` characters in `.env` as shown so Next.js does not expand them.
+- `ADMIN_PASSWORD_HASH` is the bcrypt hash for the admin password. Use the normal hash command for local Next.js development, and use the `--compose` form for Docker Compose deployments so `$` characters are not treated as environment variable references.
 - `SESSION_SECRET` signs admin session cookies. Keep it long, random, and stable for a deployment.
 - `DATABASE_URL` controls the SQLite database path. Local npm development uses `file:./data/the-collection.db`.
 - `DATA_DIR` is where uploaded logos and app data are stored. Local development can use `./data`.
@@ -145,12 +151,18 @@ For most Docker-based deployments:
 
     ```bash
     ADMIN_USERNAME=collection-admin
-    ADMIN_PASSWORD_HASH=replace-with-output-from-npm-run-password-hash
+    ADMIN_PASSWORD_HASH=replace-with-output-from-npm-run-password-hash-compose
     SESSION_SECRET=replace-with-a-long-random-string
-    DATABASE_URL=file:./data/the-collection.db
-    DATA_DIR=./data
     IMAGE_TAG=latest
     ```
+
+    Generate the production password hash with:
+
+    ```bash
+    npm run password:hash -- --compose "your-strong-password"
+    ```
+
+    The production Compose file sets `DATABASE_URL=file:/app/data/the-collection.db` and `DATA_DIR=/app/data` inside the container. Do not set local paths such as `./data` for the production container.
 
 5. Create the external Docker network or create your own and update the production Compose file accordingly.
 
