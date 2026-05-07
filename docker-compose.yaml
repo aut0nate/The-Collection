@@ -6,6 +6,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DATA_DIR: /app/data
+      DATABASE_URL: file:/app/data/the-collection.db
     ports:
       - "127.0.0.1:3000:3000"
     volumes:

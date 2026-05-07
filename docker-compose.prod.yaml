@@ -5,6 +5,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      DATA_DIR: /app/data
+      DATABASE_URL: file:/app/data/the-collection.db
     networks:
       - edge-net
     expose:
