@@ -1,0 +1,29 @@
+services:
+  the-collection:
+    image: ghcr.io/aut0nate/the-collection:${IMAGE_TAG:-latest}
+    container_name: the-collection
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - edge-net
+    expose:
+      - "3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - the-collection-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  the-collection-data:
+
+networks:
+  edge-net:
+    external: true

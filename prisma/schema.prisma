@@ -1,0 +1,62 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tools     Tool[]
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tools     ToolTag[]
+}
+
+model Tool {
+  id           String         @id @default(cuid())
+  name         String
+  url          String         @unique
+  description  String
+  logoUrl      String?
+  status       String         @default("DRAFT")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  publishedAt  DateTime?
+  categoryId   String
+  category     Category       @relation(fields: [categoryId], references: [id])
+  tags         ToolTag[]
+  platforms    ToolPlatform[]
+
+  @@index([status, publishedAt, createdAt])
+  @@index([categoryId])
+}
+
+model ToolTag {
+  toolId String
+  tagId  String
+  tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, tagId])
+}
+
+model ToolPlatform {
+  toolId   String
+  platform String
+  tool     Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@id([toolId, platform])
+}
