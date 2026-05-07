@@ -6,6 +6,8 @@ The Collection is a public catalogue of recommended apps, command line tools, an
 
 It gives visitors a simple way to browse published tools by search, platform, category, and tags. The private owner-only admin area is used to add, edit, draft, publish, and delete tools without exposing unpublished entries to the public site.
 
+![Screenshot or Preview](./images/The-Collection.png)
+
 ## Features
 
 - Browse a public catalogue of recommended tools and resources.
