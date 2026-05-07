@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { LogInIcon } from "@/components/AuthIcons";
 import { getAdminSession } from "@/lib/auth";
 
 export async function PublicHeader() {
   const session = await getAdminSession();
   const adminHref = session ? "/admin/tools" : "/admin/login";
-  const adminLabel = session ? "Manage" : "Log in";
+  const adminLabel = session ? "Manage" : "Log In";
 
   return (
     <header className="border-b border-white/10 bg-ink/78 backdrop-blur">
@@ -24,20 +25,7 @@ export async function PublicHeader() {
           href={adminHref}
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-paper transition hover:border-accent/50 hover:bg-white/[0.06]"
         >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-          >
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <path d="m10 17 5-5-5-5" />
-            <path d="M15 12H3" />
-          </svg>
+          {session ? null : <LogInIcon />}
           {adminLabel}
         </Link>
       </div>

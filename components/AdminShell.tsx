@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/admin/actions";
+import { LogOutIcon } from "@/components/AuthIcons";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,8 +17,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             View Collection
           </Link>
           <form action={logoutAction}>
-            <button className="rounded-md border border-white/10 px-4 py-2 text-sm font-medium text-mist hover:text-paper">
-              Log out
+            <button className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-paper transition hover:border-accent/50 hover:bg-white/[0.06]">
+              <LogOutIcon />
+              Log Out
             </button>
           </form>
         </div>

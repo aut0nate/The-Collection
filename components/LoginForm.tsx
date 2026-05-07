@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { loginAction } from "@/app/admin/actions";
+import { LogInIcon } from "@/components/AuthIcons";
 
 export function LoginForm() {
   const initialState: { error?: string } = {};
@@ -33,9 +34,10 @@ export function LoginForm() {
       </label>
       <button
         disabled={pending}
-        className="h-12 w-full rounded-lg bg-accent px-4 text-sm font-bold text-ink transition hover:bg-[#8ff0e5] disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-bold text-paper transition hover:border-accent/50 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {pending ? "Logging in..." : "Log in"}
+        <LogInIcon />
+        {pending ? "Logging In..." : "Log In"}
       </button>
     </form>
   );
