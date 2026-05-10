@@ -1,5 +1,7 @@
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { AdminShell } from "@/components/AdminShell";
+import { LiveSearchInput } from "@/components/LiveSearchInput";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ToolLogo } from "@/components/ToolLogo";
 import { deleteToolAction, publishToolAction, unpublishToolAction } from "@/app/admin/actions";
@@ -10,26 +12,74 @@ import { ToolStatus } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
-export default async function ToolsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function asString(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] || "" : value || "";
+}
+
+export default async function ToolsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
 
-  const tools = await prisma.tool.findMany({
-    include: {
-      category: true,
-      tags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
-      platforms: true
-    },
-    orderBy: [{ updatedAt: "desc" }]
-  });
+  const params = await searchParams;
+  const query = asString(params.q).trim();
+
+  const where: Prisma.ToolWhereInput = query
+    ? {
+        OR: [
+          { name: { contains: query } },
+          { url: { contains: query } },
+          { description: { contains: query } },
+          { status: { contains: query.toUpperCase() } },
+          { category: { name: { contains: query } } },
+          { tags: { some: { tag: { name: { contains: query } } } } },
+          { platforms: { some: { platform: { contains: query } } } }
+        ]
+      }
+    : {};
+
+  const [tools, totalCount] = await Promise.all([
+    prisma.tool.findMany({
+      where,
+      include: {
+        category: true,
+        tags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
+        platforms: true
+      },
+      orderBy: [{ updatedAt: "desc" }]
+    }),
+    prisma.tool.count()
+  ]);
 
   return (
     <AdminShell>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-mist">{tools.length} tools in the database</p>
+        <p className="text-sm text-mist">
+          {query ? `Showing ${tools.length} of ${totalCount} tools` : `${totalCount} tools in the database`}
+        </p>
         <Link href="/admin/tools/new" className="rounded-md bg-accent px-4 py-2 text-sm font-bold text-ink hover:bg-[#8ff0e5]">
           Add tool
         </Link>
       </div>
+
+      <form action="/admin/tools" className="mb-5 flex flex-col gap-3 sm:flex-row">
+        <LiveSearchInput
+          defaultValue={query}
+          label="Search management tools"
+          placeholder="Search by name, tag, platform, status, or URL..."
+          className="h-12 w-full rounded-lg border border-white/10 bg-panel px-4 text-sm text-paper outline-none transition placeholder:text-slate-500 focus:border-accent/60"
+        />
+        <div className="flex gap-2">
+          <button className="rounded-md border border-accent/35 bg-accent px-4 py-2 text-sm font-semibold text-ink transition hover:bg-[#8ff0e5]">
+            Search
+          </button>
+          {query ? (
+            <Link href="/admin/tools" className="rounded-md border border-white/10 px-4 py-2 text-sm font-medium text-mist hover:text-paper">
+              Clear
+            </Link>
+          ) : null}
+        </div>
+      </form>
 
       <div className="overflow-hidden rounded-lg border border-white/10 bg-panel">
         {tools.length ? (
@@ -83,8 +133,10 @@ export default async function ToolsPage() {
           </div>
         ) : (
           <div className="p-8 text-center">
-            <h2 className="text-lg font-semibold text-paper">No tools yet</h2>
-            <p className="mt-2 text-sm text-mist">Add your first recommendation and publish it when it is ready.</p>
+            <h2 className="text-lg font-semibold text-paper">{query ? "No matching tools" : "No tools yet"}</h2>
+            <p className="mt-2 text-sm text-mist">
+              {query ? "Try a different search term." : "Add your first recommendation and publish it when it is ready."}
+            </p>
           </div>
         )}
       </div>

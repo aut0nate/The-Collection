@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { LiveSearchInput } from "@/components/LiveSearchInput";
 import { PublicHeader } from "@/components/PublicHeader";
 import { ToolCard } from "@/components/ToolCard";
 import { prisma } from "@/lib/db";
@@ -87,15 +88,12 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
         </section>
 
         <form action="/" className="mt-9 space-y-5">
-          <label className="block">
-            <span className="sr-only">Search tools</span>
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Search tools, tags, and categories..."
-              className="h-12 w-full rounded-lg border border-white/10 bg-panel px-4 text-sm text-paper outline-none transition placeholder:text-slate-500 focus:border-accent/60"
-            />
-          </label>
+          <LiveSearchInput
+            defaultValue={query}
+            label="Search tools"
+            placeholder="Search tools, tags, and categories..."
+            className="h-12 w-full rounded-lg border border-white/10 bg-panel px-4 text-sm text-paper outline-none transition placeholder:text-slate-500 focus:border-accent/60"
+          />
 
           <div className="flex flex-wrap gap-2">
             {selectedCategory ? <input type="hidden" name="category" value={selectedCategory} /> : null}
