@@ -2,7 +2,7 @@
 
 import type { Category, Tag, Tool, ToolPlatform, ToolTag } from "@prisma/client";
 import { useActionState, useState } from "react";
-import { createToolAction, updateToolAction } from "@/app/admin/actions";
+import { createToolAction, suggestToolMetadataAction, updateToolAction } from "@/app/admin/actions";
 import { platformLabels, platforms } from "@/lib/platforms";
 import { ToolStatus } from "@/lib/status";
 
@@ -46,8 +46,13 @@ export function ToolForm({
   const action = tool ? updateToolAction.bind(null, tool.id) : createToolAction;
   const initialState: { error?: string } = {};
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [aiPending, setAiPending] = useState(false);
+  const [aiError, setAiError] = useState("");
   const selectedPlatforms = new Set(tool?.platforms.map((item) => item.platform) || []);
   const selectedStatus = tool?.status || ToolStatus.DRAFT;
+  const [nameValue, setNameValue] = useState(tool?.name || "");
+  const [urlValue, setUrlValue] = useState(tool?.url || "");
+  const [descriptionValue, setDescriptionValue] = useState(tool?.description || "");
   const [categoryValue, setCategoryValue] = useState(tool?.category.name || "");
   const [tagsValue, setTagsValue] = useState(tool?.tags.map(({ tag }) => tag.name).join(", ") || "");
   const popularCategories = categories.slice(0, 6);
@@ -66,26 +71,54 @@ export function ToolForm({
     setTagsValue([...existingTags, tagName].join(", "));
   }
 
+  async function suggestWithAi() {
+    setAiError("");
+    setAiPending(true);
+    try {
+      const suggestion = await suggestToolMetadataAction(urlValue);
+      setDescriptionValue(suggestion.description);
+      setCategoryValue(suggestion.category);
+      setTagsValue(suggestion.tags.join(", "));
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "The AI suggestion could not be generated.");
+    } finally {
+      setAiPending(false);
+    }
+  }
+
   return (
     <form action={formAction} className="space-y-6 rounded-lg border border-white/10 bg-panel p-5">
       {state.error ? (
         <p className="rounded-md border border-red-300/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{state.error}</p>
       ) : null}
+      {aiError ? (
+        <p className="rounded-md border border-red-300/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{aiError}</p>
+      ) : null}
 
       <div className="grid gap-5 md:grid-cols-2">
         <label className="block">
           <span className="text-sm font-semibold text-paper">Name</span>
-          <input name="name" defaultValue={tool?.name} required className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-paper outline-none focus:border-accent/60" />
+          <input name="name" value={nameValue} onChange={(event) => setNameValue(event.target.value)} required className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-paper outline-none focus:border-accent/60" />
         </label>
-        <label className="block">
-          <span className="text-sm font-semibold text-paper">Website or GitHub URL</span>
-          <input name="url" type="url" defaultValue={tool?.url} required className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-paper outline-none focus:border-accent/60" />
-        </label>
+        <div className="block">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="url" className="text-sm font-semibold text-paper">Website or GitHub URL</label>
+            <button
+              type="button"
+              onClick={suggestWithAi}
+              disabled={aiPending || !urlValue.trim()}
+              className="rounded-md border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {aiPending ? "Suggesting..." : "Suggest with AI"}
+            </button>
+          </div>
+          <input id="url" name="url" type="url" value={urlValue} onChange={(event) => setUrlValue(event.target.value)} required className="mt-2 h-11 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 text-paper outline-none focus:border-accent/60" />
+        </div>
       </div>
 
       <label className="block">
         <span className="text-sm font-semibold text-paper">Short description</span>
-        <textarea name="description" defaultValue={tool?.description} required rows={3} maxLength={240} className="mt-2 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-paper outline-none focus:border-accent/60" />
+        <textarea name="description" value={descriptionValue} onChange={(event) => setDescriptionValue(event.target.value)} required rows={3} maxLength={240} className="mt-2 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-3 text-paper outline-none focus:border-accent/60" />
       </label>
 
       <div className="grid gap-5 md:grid-cols-2">

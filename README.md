@@ -54,6 +54,7 @@ Before running this project, install:
     SESSION_SECRET=replace-with-a-long-random-string
     DATABASE_URL=file:./data/the-collection.db
     DATA_DIR=./data
+    OPENROUTER_API_KEY=replace-with-openrouter-api-key
     ```
 
 3. Generate an admin password hash:
@@ -83,6 +84,7 @@ Environment notes:
 - `SESSION_SECRET` signs admin session cookies. Keep it long, random, and stable for a deployment.
 - `DATABASE_URL` controls the SQLite database path. Local npm development uses `file:./data/the-collection.db`.
 - `DATA_DIR` is where uploaded logos and app data are stored. Local development can use `./data`.
+- `OPENROUTER_API_KEY` enables the admin AI suggestion button for generating a short description, category, and tags from a tool URL.
 
 ## Test Locally
 
