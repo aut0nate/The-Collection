@@ -44,6 +44,10 @@ Required variables:
 - `ADMIN_PASSWORD_HASH`
 - `SESSION_SECRET`
 
+Optional variables:
+
+- `OPENROUTER_API_KEY` enables admin AI suggestions for tool descriptions, categories, and tags.
+
 Never commit `.env`, passwords, password hashes used in production, session secrets, tokens, keys, or credentials.
 
 Admin authentication is environment-backed for a single owner. Preserve bcrypt password hashing, timing-safe credential/session comparisons, signed HTTP-only cookies, and login throttling when changing this area.

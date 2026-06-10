@@ -12,6 +12,7 @@ import {
   verifyAdminCredentials
 } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { suggestToolMetadata } from "@/lib/tool-ai";
 import { readToolFormData } from "@/lib/tool-form";
 import { saveLogoUpload } from "@/lib/uploads";
 import { normaliseName, splitList } from "@/lib/utils";
@@ -86,6 +87,11 @@ export async function loginAction(_: { error?: string }, formData: FormData) {
 export async function logoutAction() {
   await clearAdminSession();
   redirect("/admin/login");
+}
+
+export async function suggestToolMetadataAction(url: string) {
+  await requireAdmin();
+  return suggestToolMetadata(url);
 }
 
 export async function createToolAction(_: { error?: string }, formData: FormData) {
