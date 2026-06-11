@@ -26,6 +26,7 @@ services:
 
 volumes:
   the-collection-data:
+    name: the-collection-data
 
 networks:
   edge-net:
