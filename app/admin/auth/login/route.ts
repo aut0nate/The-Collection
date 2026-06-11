@@ -14,8 +14,11 @@ function getRedirectUri(request: NextRequest) {
   const configuredRedirectUri = process.env.AUTHENTIK_REDIRECT_URI?.trim();
   if (configuredRedirectUri) return configuredRedirectUri;
 
-  const appUrl = getConfiguredAppUrl() || request.nextUrl.origin;
-  return `${appUrl}/admin/auth/callback`;
+  return `${getAppOrigin(request)}/admin/auth/callback`;
+}
+
+function getAppOrigin(request: NextRequest) {
+  return getConfiguredAppUrl() || request.nextUrl.origin;
 }
 
 export async function GET(request: NextRequest) {
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(authoriseUrl);
   } catch (error) {
-    const loginUrl = new URL("/admin/login", request.nextUrl.origin);
+    const loginUrl = new URL("/admin/login", getAppOrigin(request));
     loginUrl.searchParams.set(
       "error",
       error instanceof Error ? error.message : "Authentik sign in could not be started."

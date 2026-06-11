@@ -15,12 +15,15 @@ function getRedirectUri(request: NextRequest) {
   const configuredRedirectUri = process.env.AUTHENTIK_REDIRECT_URI?.trim();
   if (configuredRedirectUri) return configuredRedirectUri;
 
-  const appUrl = getConfiguredAppUrl() || request.nextUrl.origin;
-  return `${appUrl}/admin/auth/callback`;
+  return `${getAppOrigin(request)}/admin/auth/callback`;
+}
+
+function getAppOrigin(request: NextRequest) {
+  return getConfiguredAppUrl() || request.nextUrl.origin;
 }
 
 function redirectToLogin(request: NextRequest, message: string) {
-  const loginUrl = new URL("/admin/login", request.nextUrl.origin);
+  const loginUrl = new URL("/admin/login", getAppOrigin(request));
   loginUrl.searchParams.set("error", message);
   return NextResponse.redirect(loginUrl);
 }
@@ -66,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     await createAdminSession(claims.email || claims.preferred_username || "authentik-admin");
-    return NextResponse.redirect(new URL("/admin/tools", request.nextUrl.origin));
+    return NextResponse.redirect(new URL("/admin/tools", getAppOrigin(request)));
   } catch (callbackError) {
     return redirectToLogin(
       request,
