@@ -168,6 +168,8 @@ For most Docker-based deployments:
 
     The production Compose file sets `DATABASE_URL=file:/app/data/the-collection.db` and `DATA_DIR=/app/data` inside the container. Do not set local paths such as `./data` for the production container.
 
+    The production Compose file mounts the exact Docker volume named `the-collection-data`; do not allow Compose to create a project-prefixed replacement volume or the public site will appear empty.
+
 5. Create the external Docker network or create your own and update the production Compose file accordingly.
 
     ```bash
