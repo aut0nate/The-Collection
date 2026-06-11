@@ -1,22 +1,13 @@
 import "server-only";
 
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 const cookieName = "the_collection_session";
+const oauthCookieName = "the_collection_authentik_oauth";
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 14;
-const loginWindowMs = 15 * 60 * 1000;
-const maxFailedLoginAttempts = 5;
-const dummyPasswordHash = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8vYw7zvCX6WyqXn9PZSNTEvQw8b1lC";
-
-type LoginAttempt = {
-  count: number;
-  firstFailedAt: number;
-};
-
-const failedLoginAttempts = new Map<string, LoginAttempt>();
+const oauthCookieMaxAgeSeconds = 60 * 10;
 
 function getSessionSecret() {
   const secret = process.env.SESSION_SECRET;
@@ -28,12 +19,6 @@ function getSessionSecret() {
 
 function sign(payload: string) {
   return crypto.createHmac("sha256", getSessionSecret()).update(payload).digest("base64url");
-}
-
-function safeEqualString(actual: string, expected: string) {
-  const actualHash = crypto.createHash("sha256").update(actual).digest();
-  const expectedHash = crypto.createHash("sha256").update(expected).digest();
-  return crypto.timingSafeEqual(actualHash, expectedHash);
 }
 
 function safeEqualSignature(actual: string, expected: string) {
@@ -53,7 +38,12 @@ function createSessionValue(username: string) {
   return `${payload}.${sign(payload)}`;
 }
 
-function parseSessionValue(value: string | undefined) {
+function createSignedJsonValue(value: unknown) {
+  const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${payload}.${sign(payload)}`;
+}
+
+function parseSignedJsonValue<T>(value: string | undefined) {
   if (!value) return null;
   const parts = value.split(".");
   if (parts.length !== 2) return null;
@@ -62,85 +52,104 @@ function parseSessionValue(value: string | undefined) {
   if (!payload || !signature || !safeEqualSignature(sign(payload), signature)) return null;
 
   try {
-    const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-      username: string;
-      expiresAt: number;
-    };
-    if (!session.username || session.expiresAt < Date.now()) return null;
-    return session;
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as T;
   } catch {
     return null;
   }
 }
 
-async function getLoginAttemptKey(username: string) {
-  const headerStore = await headers();
-  const forwardedFor = headerStore.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ipAddress = forwardedFor || headerStore.get("x-real-ip") || "local";
-  return crypto
-    .createHash("sha256")
-    .update(`${ipAddress}:${username.trim().toLowerCase()}`)
-    .digest("base64url");
+function parseSessionValue(value: string | undefined) {
+  const session = parseSignedJsonValue<{
+    username: string;
+    expiresAt: number;
+  }>(value);
+
+  if (!session) return null;
+  if (!session.username || session.expiresAt < Date.now()) return null;
+  return session;
 }
 
-export async function getLoginAttemptStatus(username: string) {
-  const key = await getLoginAttemptKey(username);
-  const attempt = failedLoginAttempts.get(key);
+type AuthentikLoginState = {
+  state: string;
+  nonce: string;
+  codeVerifier: string;
+  expiresAt: number;
+};
 
-  if (!attempt) return { allowed: true, key, retryAfterSeconds: 0 };
-
-  const windowEndsAt = attempt.firstFailedAt + loginWindowMs;
-  if (Date.now() >= windowEndsAt) {
-    failedLoginAttempts.delete(key);
-    return { allowed: true, key, retryAfterSeconds: 0 };
-  }
-
-  if (attempt.count < maxFailedLoginAttempts) return { allowed: true, key, retryAfterSeconds: 0 };
-
-  return {
-    allowed: false,
-    key,
-    retryAfterSeconds: Math.ceil((windowEndsAt - Date.now()) / 1000)
-  };
+export function createRandomToken() {
+  return crypto.randomBytes(32).toString("base64url");
 }
 
-export function recordFailedLoginAttempt(key: string) {
-  const attempt = failedLoginAttempts.get(key);
-  const now = Date.now();
+export async function createCodeChallenge(codeVerifier: string) {
+  return crypto.createHash("sha256").update(codeVerifier).digest("base64url");
+}
 
-  if (!attempt || now >= attempt.firstFailedAt + loginWindowMs) {
-    failedLoginAttempts.set(key, { count: 1, firstFailedAt: now });
-    return;
-  }
-
-  failedLoginAttempts.set(key, {
-    count: attempt.count + 1,
-    firstFailedAt: attempt.firstFailedAt
+export async function setAuthentikLoginState(state: AuthentikLoginState) {
+  const cookieStore = await cookies();
+  cookieStore.set(oauthCookieName, createSignedJsonValue(state), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/admin/auth",
+    maxAge: oauthCookieMaxAgeSeconds,
+    priority: "high"
   });
 }
 
-export function clearFailedLoginAttempts(key: string) {
-  failedLoginAttempts.delete(key);
+export async function getAuthentikLoginState() {
+  const cookieStore = await cookies();
+  const state = parseSignedJsonValue<AuthentikLoginState>(cookieStore.get(oauthCookieName)?.value);
+
+  if (!state) return null;
+  if (!state.state || !state.nonce || !state.codeVerifier || state.expiresAt < Date.now()) return null;
+  return state;
 }
 
-export async function verifyAdminCredentials(username: string, password: string) {
-  const expectedUsername = process.env.ADMIN_USERNAME;
-  const passwordHash = process.env.ADMIN_PASSWORD_HASH;
+export async function clearAuthentikLoginState() {
+  const cookieStore = await cookies();
+  cookieStore.set(oauthCookieName, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/admin/auth",
+    maxAge: 0
+  });
+}
 
-  if (!expectedUsername || !passwordHash) {
-    throw new Error("ADMIN_USERNAME and ADMIN_PASSWORD_HASH must be configured.");
+export function isAllowedAdminEmail(email: string) {
+  const expectedEmail = process.env.AUTHENTIK_ADMIN_EMAIL;
+  if (!expectedEmail) {
+    throw new Error("AUTHENTIK_ADMIN_EMAIL must be configured.");
   }
 
-  const usernameMatches = safeEqualString(username, expectedUsername);
-  const passwordMatches = await bcrypt.compare(password, usernameMatches ? passwordHash : dummyPasswordHash);
-  return usernameMatches && passwordMatches;
+  return email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
+}
+
+export function getAuthentikConfig() {
+  const issuer = process.env.AUTHENTIK_ISSUER?.trim();
+  const clientId = process.env.AUTHENTIK_CLIENT_ID?.trim();
+  const clientSecret = process.env.AUTHENTIK_CLIENT_SECRET?.trim();
+
+  if (!issuer || !clientId || !clientSecret) {
+    throw new Error("AUTHENTIK_ISSUER, AUTHENTIK_CLIENT_ID, and AUTHENTIK_CLIENT_SECRET must be configured.");
+  }
+
+  return {
+    issuer: issuer.endsWith("/") ? issuer : `${issuer}/`,
+    clientId,
+    clientSecret
+  };
+}
+
+export function getConfiguredAppUrl() {
+  return process.env.APP_URL?.trim().replace(/\/$/, "") || null;
 }
 
 export async function createAdminSession(username: string) {
   const cookieStore = await cookies();
   cookieStore.set(cookieName, createSessionValue(username), {
     httpOnly: true,
-    sameSite: "strict",
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: sessionMaxAgeSeconds,

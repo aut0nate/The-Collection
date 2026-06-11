@@ -6,7 +6,7 @@ import { getAdminSession } from "@/lib/auth";
 export async function PublicHeader() {
   const session = await getAdminSession();
   const adminHref = session ? "/admin/tools" : "/admin/login";
-  const adminLabel = session ? "Manage" : "Log In";
+  const adminLabel = session ? "Manage" : "Sign in";
 
   return (
     <header className="border-b border-white/10 bg-ink/78 backdrop-blur">

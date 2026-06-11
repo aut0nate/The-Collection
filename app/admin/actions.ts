@@ -2,15 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  clearAdminSession,
-  clearFailedLoginAttempts,
-  createAdminSession,
-  getLoginAttemptStatus,
-  recordFailedLoginAttempt,
-  requireAdmin,
-  verifyAdminCredentials
-} from "@/lib/auth";
+import { clearAdminSession, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { suggestToolMetadata } from "@/lib/tool-ai";
 import { readToolFormData } from "@/lib/tool-form";
@@ -53,35 +45,6 @@ async function categoryByName(name: string) {
       order: await prisma.category.count()
     }
   });
-}
-
-export async function loginAction(_: { error?: string }, formData: FormData) {
-  const username = String(formData.get("username") || "");
-  const password = String(formData.get("password") || "");
-
-  try {
-    const attemptStatus = await getLoginAttemptStatus(username);
-    if (!attemptStatus.allowed) {
-      return {
-        error: `Too many failed login attempts. Try again in ${Math.ceil(attemptStatus.retryAfterSeconds / 60)} minutes.`
-      };
-    }
-
-    const valid = await verifyAdminCredentials(username, password);
-    if (!valid) {
-      recordFailedLoginAttempt(attemptStatus.key);
-      return { error: "Those login details did not work." };
-    }
-
-    clearFailedLoginAttempts(attemptStatus.key);
-    await createAdminSession(username);
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "The login service is not configured correctly."
-    };
-  }
-
-  redirect("/admin/tools");
 }
 
 export async function logoutAction() {

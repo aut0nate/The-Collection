@@ -24,7 +24,7 @@ It gives visitors a simple way to browse published tools by search, platform, ca
 - Tailwind CSS
 - Prisma
 - SQLite
-- `bcryptjs` for admin password hashing
+- Authentik OIDC for owner-only admin sign-in
 - Docker and Docker Compose
 - GitHub Container Registry
 - GitHub Actions
@@ -49,29 +49,18 @@ Before running this project, install:
 2. Update `.env` with values for your local setup:
 
     ```bash
-    ADMIN_USERNAME=collection-admin
-    ADMIN_PASSWORD_HASH=replace-with-output-from-npm-run-password-hash
+    APP_URL=http://127.0.0.1:3000
+    AUTHENTIK_ISSUER=https://auth.example.com/application/o/the-collection/
+    AUTHENTIK_CLIENT_ID=replace-with-authentik-client-id
+    AUTHENTIK_CLIENT_SECRET=replace-with-authentik-client-secret
+    AUTHENTIK_ADMIN_EMAIL=nathan@autonate.dev
     SESSION_SECRET=replace-with-a-long-random-string
     DATABASE_URL=file:./data/the-collection.db
     DATA_DIR=./data
     OPENROUTER_API_KEY=replace-with-openrouter-api-key
     ```
 
-3. Generate an admin password hash:
-
-    ```bash
-    npm run password:hash -- "your-strong-password"
-    ```
-
-    The command prints an `ADMIN_PASSWORD_HASH=...` line that is escaped safely for a Next.js `.env` file. Keep the plain password in your password manager, not in the project.
-
-    For a Docker Compose `.env` file, generate the hash in Compose-safe format instead:
-
-    ```bash
-    npm run password:hash -- --compose "your-strong-password"
-    ```
-
-4. Generate a session secret:
+3. Generate a session secret:
 
     ```bash
     openssl rand -base64 48
@@ -79,12 +68,55 @@ Before running this project, install:
 
 Environment notes:
 
-- `ADMIN_USERNAME` is the owner username allowed to access the admin area.
-- `ADMIN_PASSWORD_HASH` is the bcrypt hash for the admin password. Use the normal hash command for local Next.js development, and use the `--compose` form for Docker Compose deployments so `$` characters are not treated as environment variable references.
+- `APP_URL` is the public base URL for the site. In production, use the deployed HTTPS URL.
+- `AUTHENTIK_ISSUER` is the Authentik application issuer URL, usually `https://auth.example.com/application/o/<application-slug>/`.
+- `AUTHENTIK_CLIENT_ID` and `AUTHENTIK_CLIENT_SECRET` come from the Authentik OAuth2/OpenID provider.
+- `AUTHENTIK_ADMIN_EMAIL` is the only email address allowed to access the admin area. For this deployment it should be `nathan@autonate.dev`.
+- `AUTHENTIK_REDIRECT_URI` is optional. If omitted, the app uses `APP_URL + /admin/auth/callback`.
 - `SESSION_SECRET` signs admin session cookies. Keep it long, random, and stable for a deployment.
 - `DATABASE_URL` controls the SQLite database path. Local npm development uses `file:./data/the-collection.db`.
 - `DATA_DIR` is where uploaded logos and app data are stored. Local development can use `./data`.
 - `OPENROUTER_API_KEY` enables the admin AI suggestion button for generating a short description, category, and tags from a tool URL.
+
+## Authentik Setup
+
+The app uses OpenID Connect. In plain English, The Collection sends you to Authentik, Authentik proves who you are, and then The Collection starts its own signed admin session only if the email claim is `nathan@autonate.dev`.
+
+In Authentik:
+
+1. Go to **Applications > Providers** and create an **OAuth2/OpenID Provider**.
+2. Use these provider settings:
+    - Name: `The Collection`
+    - Client type: `Confidential`
+    - Redirect URI: `https://your-collection-domain/admin/auth/callback`
+    - Signing key: select an RSA signing key. The app requires RS256-signed ID tokens.
+    - Subject mode: use the default unless you have a reason to change it.
+    - Include the `openid`, `profile`, and `email` scope mappings.
+3. Save the provider and copy the client ID and client secret into `.env`.
+4. Go to **Applications > Applications** and create an application:
+    - Name: `The Collection`
+    - Slug: `the-collection`
+    - Provider: the provider you created above
+    - Launch URL: `https://your-collection-domain/admin/login`
+5. Ensure the Authentik user for Nathan has the email address `nathan@autonate.dev`.
+6. Set these values in the app `.env`:
+
+    ```bash
+    APP_URL=https://your-collection-domain
+    AUTHENTIK_ISSUER=https://your-authentik-domain/application/o/the-collection/
+    AUTHENTIK_CLIENT_ID=copy-from-authentik
+    AUTHENTIK_CLIENT_SECRET=copy-from-authentik
+    AUTHENTIK_ADMIN_EMAIL=nathan@autonate.dev
+    SESSION_SECRET=generate-with-openssl-rand-base64-48
+    ```
+
+For local testing, add a second redirect URI in Authentik:
+
+```text
+http://127.0.0.1:3000/admin/auth/callback
+```
+
+Then set `APP_URL=http://127.0.0.1:3000` locally.
 
 ## Test Locally
 
@@ -154,16 +186,13 @@ For most Docker-based deployments:
 4. Create a `.env` file:
 
     ```bash
-    ADMIN_USERNAME=collection-admin
-    ADMIN_PASSWORD_HASH=replace-with-output-from-npm-run-password-hash-compose
+    APP_URL=https://your-collection-domain
+    AUTHENTIK_ISSUER=https://your-authentik-domain/application/o/the-collection/
+    AUTHENTIK_CLIENT_ID=replace-with-authentik-client-id
+    AUTHENTIK_CLIENT_SECRET=replace-with-authentik-client-secret
+    AUTHENTIK_ADMIN_EMAIL=nathan@autonate.dev
     SESSION_SECRET=replace-with-a-long-random-string
     IMAGE_TAG=latest
-    ```
-
-    Generate the production password hash with:
-
-    ```bash
-    npm run password:hash -- --compose "your-strong-password"
     ```
 
     The production Compose file sets `DATABASE_URL=file:/app/data/the-collection.db` and `DATA_DIR=/app/data` inside the container. Do not set local paths such as `./data` for the production container.
@@ -195,7 +224,7 @@ After deployment, verify:
 
 - The public homepage loads.
 - `/admin/login` loads.
-- Admin login works.
+- Admin login redirects to Authentik and returns to `/admin/tools`.
 - Tool search and filters work.
 - Data and logos remain available after restarting the container.
 
@@ -215,10 +244,10 @@ Back up the SQLite database and uploaded logos regularly from the `the-collectio
 
 - Do not commit `.env`.
 - Keep `SESSION_SECRET` long and random.
-- Use `npm run password:hash` rather than storing a plain password.
-- The admin login uses bcrypt password hashes, timing-safe comparisons, signed HTTP-only cookies, and short in-memory throttling after repeated failed login attempts.
+- Keep the Authentik client secret in the deployment environment only.
+- The admin login uses Authentik OIDC with state, nonce, PKCE, RS256 ID token verification, an owner email allow-list, and signed HTTP-only cookies. The app session cookie uses `SameSite=Lax` so the session is available after returning from Authentik.
 - Store production secrets in the deployment environment or GitHub Actions secrets, not in the repository.
-- Use a unique admin password for production and rotate `SESSION_SECRET` if it is ever exposed. Rotating the secret signs every existing admin session out.
+- Rotate the Authentik client secret if it is ever exposed, and rotate `SESSION_SECRET` if it is ever exposed. Rotating the session secret signs every existing admin session out.
 - Public visitors only see published tools that are intended to be public.
 
 ## AI-Assisted Development
