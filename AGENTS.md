@@ -26,12 +26,6 @@ npm run lint
 npm run build
 ```
 
-Generate an admin password hash with:
-
-```bash
-npm run password:hash -- "your-password"
-```
-
 ## Environment
 
 Use `.env.example` as the template for `.env`.
@@ -40,17 +34,20 @@ Required variables:
 
 - `DATABASE_URL`
 - `DATA_DIR`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD_HASH`
+- `APP_URL`
+- `AUTHENTIK_ISSUER`
+- `AUTHENTIK_CLIENT_ID`
+- `AUTHENTIK_CLIENT_SECRET`
+- `AUTHENTIK_ADMIN_EMAIL`
 - `SESSION_SECRET`
 
 Optional variables:
 
 - `OPENROUTER_API_KEY` enables admin AI suggestions for tool descriptions, categories, and tags.
 
-Never commit `.env`, passwords, password hashes used in production, session secrets, tokens, keys, or credentials.
+Never commit `.env`, Authentik client secrets, session secrets, tokens, keys, or credentials.
 
-Admin authentication is environment-backed for a single owner. Preserve bcrypt password hashing, timing-safe credential/session comparisons, signed HTTP-only cookies, and login throttling when changing this area.
+Admin authentication is backed by Authentik OIDC for a single owner email address. Preserve the OIDC state, nonce, PKCE, RS256 ID token verification, owner-email allow-listing, signed HTTP-only cookies, `SameSite=Lax` app session cookies for the OAuth redirect flow, and callback error handling when changing this area.
 
 ## Code Style
 
@@ -79,7 +76,7 @@ npm run lint
 npm run build
 ```
 
-For UI changes, test both desktop and mobile widths. Confirm search, platform filters, category filters, admin login, and tool CRUD flows.
+For UI changes, test both desktop and mobile widths. Confirm search, platform filters, category filters, Authentik admin login, and tool CRUD flows.
 
 ## Deployment Notes
 

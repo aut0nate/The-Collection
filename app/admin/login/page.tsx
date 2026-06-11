@@ -6,9 +6,14 @@ import { getAdminSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await getAdminSession();
   if (session) redirect("/admin/tools");
+  const { error } = await searchParams;
 
   return (
     <main className="grid min-h-screen place-items-center px-5 py-10">
@@ -41,7 +46,7 @@ export default async function LoginPage() {
         />
         <h1 className="mt-6 text-center text-3xl font-semibold text-paper">THE COLLECTION</h1>
         <p className="mt-2 text-center text-base text-mist">Sign in to your collection</p>
-        <LoginForm />
+        <LoginForm error={error} />
       </section>
     </main>
   );
