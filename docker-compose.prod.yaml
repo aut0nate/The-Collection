@@ -17,6 +17,7 @@ services:
       - /tmp
     volumes:
       - the-collection-data:/app/data
+      - the-collection-next-cache:/app/.next/cache
     security_opt:
       - no-new-privileges:true
     logging:
@@ -27,6 +28,8 @@ services:
 volumes:
   the-collection-data:
     name: the-collection-data
+  the-collection-next-cache:
+    name: the-collection-next-cache
 
 networks:
   edge-net:

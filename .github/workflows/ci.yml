@@ -52,6 +52,10 @@ jobs:
 
           docker run --detach --name the-collection-smoke \
             --publish 3000:3000 \
+            --read-only \
+            --tmpfs /tmp \
+            --volume /app/data \
+            --volume /app/.next/cache \
             --env ADMIN_USERNAME=ci-admin \
             --env ADMIN_PASSWORD_HASH='$2a$10$6QqB0Y7MY0lFxK5vT3H6I.gxxtqkS28meE2gXApVGyr3ZwCwRQiwK' \
             --env SESSION_SECRET=ci-session-secret-that-is-long-enough-for-tests \
@@ -70,4 +74,4 @@ jobs:
 
       - name: Stop smoke test container
         if: always()
-        run: docker rm --force the-collection-smoke || true
+        run: docker rm --force --volumes the-collection-smoke || true
