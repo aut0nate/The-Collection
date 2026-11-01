@@ -84,4 +84,6 @@ The app is designed for Docker deployment on a public VPS route through Nginx Pr
 
 - Local Compose publishes `127.0.0.1:3000`.
 - Production Compose joins `edge-net` and exposes port `3000` without publishing host ports.
+- The entrypoint prepares volume ownership, then runs database initialisation and Next.js as the unprivileged `node` account.
+- Database initialisation uses `node scripts/init-db.mjs`; production images exclude development dependencies.
 - SQLite and uploaded logos persist in the `the-collection-data` Docker volume.
