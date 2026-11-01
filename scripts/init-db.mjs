@@ -1,4 +1,6 @@
-import { prisma } from "../lib/db";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS "Category" (
