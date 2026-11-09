@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
   if (error) {
     await clearAuthentikLoginState();
-    return redirectToLogin(request, "Authentik sign in was cancelled or denied.");
+    return redirectToLogin(request, "Sign-in was cancelled or denied.");
   }
 
   const code = request.nextUrl.searchParams.get("code");
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     await clearAuthentikLoginState();
 
     if (!code || !returnedState || !loginState || returnedState !== loginState.state) {
-      return redirectToLogin(request, "Authentik sign in could not be verified. Please try again.");
+      return redirectToLogin(request, "Sign-in could not be verified. Please try again.");
     }
 
     const config = getAuthentikConfig();
@@ -65,15 +65,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (!isAllowedAdminEmail(claims.email || "")) {
-      return redirectToLogin(request, "This Authentik account is not allowed to manage the collection.");
+      return redirectToLogin(request, "This account is not allowed to manage the collection.");
     }
 
     await createAdminSession(claims.email || claims.preferred_username || "authentik-admin");
     return NextResponse.redirect(new URL("/admin/tools", getAppOrigin(request)));
-  } catch (callbackError) {
-    return redirectToLogin(
-      request,
-      callbackError instanceof Error ? callbackError.message : "Authentik sign in failed."
-    );
+  } catch {
+    return redirectToLogin(request, "Sign-in could not be completed. Please try again.");
   }
 }

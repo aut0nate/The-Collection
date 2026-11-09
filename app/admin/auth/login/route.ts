@@ -49,11 +49,11 @@ export async function GET(request: NextRequest) {
     authoriseUrl.searchParams.set("code_challenge_method", "S256");
 
     return NextResponse.redirect(authoriseUrl);
-  } catch (error) {
+  } catch {
     const loginUrl = new URL("/admin/login", getAppOrigin(request));
     loginUrl.searchParams.set(
       "error",
-      error instanceof Error ? error.message : "Authentik sign in could not be started."
+      "Sign-in could not be started. Please try again."
     );
     return NextResponse.redirect(loginUrl);
   }
