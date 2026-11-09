@@ -11,7 +11,7 @@ export function LoginForm({ error }: { error?: string }) {
         className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-bold text-paper transition hover:border-accent/50 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogInIcon />
-        Sign in with Authentik
+        Sign in
       </a>
     </div>
   );
